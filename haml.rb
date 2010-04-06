@@ -19,7 +19,6 @@ module Jekyll
         begin
           result = `#{exec_path} #{f}`
           raise HamlErrorException.new if result.empty?
-          puts "Rendering #{f}"
           output_file_name = f.gsub!(input_regex,output_extension)
           File.open(output_file_name,'w') {|f| f.write(result)} if !File.exists?(output_file_name) or (File.exists?(output_file_name) and result != File.read(output_file_name))
         rescue HamlErrorException => e
@@ -39,7 +38,8 @@ module Jekyll
     site_instance.sass2css
   end
 
-  AOP.after(Site, :filter_entries) do |site_instance, result, args|
+  AOP.around(Site, :filter_entries) do |site_instance, args, proceed, abort|
+    result = proceed.call
     result.reject{ |entry| entry.match(/\.haml$/) || entry.match(/\.sass$/) }
   end
 end
