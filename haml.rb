@@ -39,7 +39,8 @@ module Jekyll
     site_instance.sass2css
   end
 
-  AOP.after(Site, :filter_entries) do |site_instance, result, args|
+  AOP.around(Site, :filter_entries) do |site_instance, args, proceed, abort|
+    result = proceed.call
     result.reject{ |entry| entry.match(/\.haml$/) || entry.match(/\.sass$/) }
   end
 end
