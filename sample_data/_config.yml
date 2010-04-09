@@ -1,4 +1,2 @@
-haml_path: haml
 haml_folder: **/*.haml
-sass_path: sass
 sass_folder: **/*.sass
