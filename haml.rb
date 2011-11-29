@@ -14,6 +14,11 @@ module Jekyll
       compile_sass(["*.sass", sass_folder], /\.sass$/,'.css')
     end  
 
+    def scss2css
+      scss_folder = self.config['scss_folder'] || '**/*.scss'
+      compile_scss(["*.scss", scss_folder], /\.scss$/,'.css')
+    end  
+
     private
 
     def compile_haml(files, input_regex, output_extension)
@@ -44,6 +49,20 @@ module Jekyll
       end
     end
 
+    def compile_scss(files, input_regex, output_extension)
+      Dir.glob(files).each do |f| 
+        begin
+          origin = File.open(f).read
+          result = Sass::Engine.new(origin, syntax: :scss).render
+          raise HamlErrorException.new if result.empty?
+          puts "Rendering #{f}"
+          output_file_name = f.gsub!(input_regex,output_extension)
+          File.open(output_file_name,'w') {|f| f.write(result)} if !File.exists?(output_file_name) or (File.exists?(output_file_name) and result != File.read(output_file_name))
+        rescue HamlErrorException => e
+        end
+      end
+    end
+
   end
 
   class HamlErrorException < Exception
@@ -57,8 +76,16 @@ module Jekyll
     site_instance.sass2css
   end
 
+  AOP.before(Site, :render) do |site_instance, result, args|
+    site_instance.scss2css
+  end
+
   AOP.around(Site, :filter_entries) do |site_instance, args, proceed, abort|
     result = proceed.call
-    result.reject{ |entry| entry.match(/\.haml$/) || entry.match(/\.sass$/) }
+    result.reject do |entry|
+      entry.match(/\.haml$/) ||
+      entry.match(/\.sass$/) ||
+      entry.match(/\.scss$/)
+    end
   end
 end
