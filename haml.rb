@@ -25,11 +25,9 @@ module Jekyll
     def compile( files, input_regex, output_extension, engine, options = {} )
 
       Dir.glob(files).each do |f| 
-        begin
-
-          origin = File.open(f).read
-          result = engine.new( origin, options ).render
-          raise HamlErrorException.new if result.empty?
+        origin = File.open(f).read
+        result = engine.new( origin, options ).render
+        if !result.empty?
 
           puts "Rendering #{f}"
           output_file_name = f.gsub!( input_regex, output_extension )
@@ -40,18 +38,14 @@ module Jekyll
             end
           end
 
-        rescue HamlErrorException => e
         end
       end
     end
 
-    def file_outdated?( file_name, result )
-      !File.exists?(file_name) or (File.exists?(file_name) and result != File.read(file_name))
+    def file_outdated?( file, result )
+      !File.exists?(file) or (File.exists?(file) and result != File.read(file))
     end
 
-  end
-
-  class HamlErrorException < Exception
   end
 
   AOP.before(Site, :render) do |site_instance, result, args|
