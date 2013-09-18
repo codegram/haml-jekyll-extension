@@ -4,49 +4,48 @@ require 'sass'
 
 module Jekyll
   class Site
+
     def haml2html
-      haml_folder = self.config['haml_folder'] || '**/*.haml'
-      compile_haml(["*.haml", haml_folder], /\.haml$/,'.html')
+      folder = self.config['haml_folder'] || '**/*.haml'
+      compile( ["*.haml", folder], /\.haml$/, ".html", Haml::Engine )
     end  
 
     def sass2css
-      sass_folder = self.config['sass_folder'] || '**/*.sass'
-      compile_sass(["*.sass", sass_folder], /\.sass$/,'.css')
+      folder = self.config['folder'] || '**/*.sass'
+      compile( ["*.sass", folder], /\.sass$/, ".css", Sass::Engine )
+    end  
+
+    def scss2css
+      folder = self.config['scss_folder'] || '**/*.scss'
+      compile( ["*.scss", folder], /\.scss$/, ".css", Sass::Engine, syntax: :scss )
     end  
 
     private
 
-    def compile_haml(files, input_regex, output_extension)
+    def compile( files, input_regex, output_extension, engine, options = {} )
+
       Dir.glob(files).each do |f| 
-        begin
-          origin = File.open(f).read
-          result = Haml::Engine.new(origin).render
-          raise HamlErrorException.new if result.empty?
+        origin = File.open(f).read
+        result = engine.new( origin, options ).render
+        if !result.empty?
+
           puts "Rendering #{f}"
-          output_file_name = f.gsub!(input_regex,output_extension)
-          File.open(output_file_name,'w') {|f| f.write(result)} if !File.exists?(output_file_name) or (File.exists?(output_file_name) and result != File.read(output_file_name))
-        rescue HamlErrorException => e
+          output_file_name = f.gsub!( input_regex, output_extension )
+
+          if file_outdated?( output_file_name, result )
+            File.open( output_file_name, 'w' ) do |f|
+              f.write( result )
+            end
+          end
+
         end
       end
     end
 
-    def compile_sass(files, input_regex, output_extension)
-      Dir.glob(files).each do |f| 
-        begin
-          origin = File.open(f).read
-          result = Sass::Engine.new(origin).render
-          raise HamlErrorException.new if result.empty?
-          puts "Rendering #{f}"
-          output_file_name = f.gsub!(input_regex,output_extension)
-          File.open(output_file_name,'w') {|f| f.write(result)} if !File.exists?(output_file_name) or (File.exists?(output_file_name) and result != File.read(output_file_name))
-        rescue HamlErrorException => e
-        end
-      end
+    def file_outdated?( file, result )
+      !File.exists?(file) or (File.exists?(file) and result != File.read(file))
     end
 
-  end
-
-  class HamlErrorException < Exception
   end
 
   AOP.before(Site, :render) do |site_instance, result, args|
@@ -57,8 +56,16 @@ module Jekyll
     site_instance.sass2css
   end
 
+  AOP.before(Site, :render) do |site_instance, result, args|
+    site_instance.scss2css
+  end
+
   AOP.around(Site, :filter_entries) do |site_instance, args, proceed, abort|
     result = proceed.call
-    result.reject{ |entry| entry.match(/\.haml$/) || entry.match(/\.sass$/) }
+    result.reject do |entry|
+      entry.match(/\.haml$/) ||
+      entry.match(/\.sass$/) ||
+      entry.match(/\.scss$/)
+    end
   end
 end
